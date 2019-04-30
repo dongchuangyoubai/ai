@@ -1,6 +1,7 @@
 import os
 fr = open(os.path.join('original', 'train1.txt'), 'r', encoding='utf-8')
 clean_data = []
+count = 0
 for line in fr.readlines():
     cont = line.strip().split(' ')
     cont = [i.split('/') for i in cont]
@@ -27,13 +28,15 @@ for line in fr.readlines():
         elif label == 'nt':
             tmp_str += i[0][0] + '/' + 'B-ORG '
             for j in i[0][1: -1]:
-                tmp_str += j + '/' + 'M-ORG'
+                tmp_str += j + '/' + 'M-ORG '
             if len(i[0]) > 1:
                 tmp_str += i[0][-1] + '/' + 'E-ORG '
         else:
             continue
     clean_data.append(tmp_str + '\n')
-    #break
+    count += 1
+    if count == 10:
+        break
 fr.close()
 
 fw = open('train_data', 'w', encoding='utf-8')

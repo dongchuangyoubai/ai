@@ -1,18 +1,45 @@
 import pickle
 import numpy as np
+import collections
 
-def build_vocab(path):
+def build_vocab(path, vocab_size):
     fr = open(path, 'r', encoding='utf-8')
     char2count = {}
     for line in fr.readlines():
         tmp = [i.split('/')[0] for i in line.strip().split(' ')]
-        print(tmp)
 
         for i in tmp:
             if i not in char2count:
                 char2count[i] = 0
             char2count[i] += 1
-        print(char2count)
-        break
+    a = sorted(char2count.items(), key=lambda x: x[1], reverse=True)
+    char = []
+    for (i, _) in a:
+        if vocab_size - 1 != 0:
+            char.append(i)
+            vocab_size -= 1
+    char.append('UNK')
+    char2id = {}
+    for i in range(len(char)):
+        char2id[char[i]] = i
+    print(char2id)
+    dataset_x = []
+    dataset_y = []
+    fr = open(path, 'r', encoding='utf-8')
+    for line in fr.readlines():
+        tmp = [i.split('/') for i in line.strip().split(' ')]
+        data_x = [str(char2id[i[0]]) if i[0] in char2id else str(99) for i in tmp]
+        data_y = [i[1] for i in tmp]
+        dataset_x.append(data_x)
+        dataset_y.append(data_y)
+    with open('train_data_x', 'w', encoding='utf-8') as fw:
+        for i in dataset_x:
+            fw.writelines(' '.join(i) + '\n')
 
-build_vocab('train_data')
+    with open('train_data_y', 'w', encoding='utf-8') as fw:
+        for i in dataset_y:
+            fw.writelines(' '.join(i) + '\n')
+
+
+
+build_vocab('train_data', 100)
