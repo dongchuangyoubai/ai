@@ -33,24 +33,31 @@ def build_vocab(path, vocab_size):
     char2id = {}
     for i in range(len(char)):
         char2id[char[i]] = i
-    print(char2id)
+    # print(char2id)
     dataset_x = []
     dataset_y = []
+    seq_len = 0
     fr = open(path, 'r', encoding='utf-8')
     for line in fr.readlines():
         tmp = [i.split('/') for i in line.strip().split(' ')]
-        data_x = [str(char2id[i[0]]) if i[0] in char2id else str(99) for i in tmp]
-        data_y = [label_dict[i[1]] for i in tmp]
+        data_x = [str(char2id[i[0]]) if i[0] in char2id else str(3999) for i in tmp]
+        data_y = [str(label_dict[i[1]]) for i in tmp]
         dataset_x.append(data_x)
         dataset_y.append(data_y)
+        tmp = len(data_y)
+        if tmp > seq_len:
+            seq_len = tmp
+
+    print(seq_len)
+
     with open('train_data_x', 'w', encoding='utf-8') as fw:
         for i in dataset_x:
             fw.writelines(' '.join(i) + '\n')
 
     with open('train_data_y', 'w', encoding='utf-8') as fw:
         for i in dataset_y:
-            fw.writelines(' '.join(str(i)) + '\n')
+            fw.writelines(' '.join(i) + '\n')
 
 
 
-build_vocab('train_data', 100)
+build_vocab('train_data', 4000)

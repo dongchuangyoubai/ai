@@ -35,8 +35,8 @@ for line in fr.readlines():
             continue
     clean_data.append(tmp_str + '\n')
     count += 1
-    if count == 10:
-        break
+    # if count == 10:
+    #     break
 fr.close()
 
 fw = open('train_data', 'w', encoding='utf-8')
