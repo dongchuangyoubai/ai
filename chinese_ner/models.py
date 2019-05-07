@@ -14,17 +14,17 @@ class NERModel(object):
 
     def set_placeholder(self):
         embeddings = tf.get_variable('embeddings', [self.embedding_size, self.embedding_dim],
-                                          initializer=tf.truncated_normal_initializer(stddev=0.1, seed=1))
+                                          initializer=tf.truncated_normal_initializer(stddev=0.1, seed=1), trainable=True)
         self.inputs = tf.placeholder(tf.int32, shape=[self.batch_size, self.sequence_len])
         self.inputs_embeddings = tf.nn.embedding_lookup(embeddings, self.inputs)
-        self.labels = tf.placeholder(tf.int32, shape=[self.batch_size, self.sequence_len])
+        self.labels = tf.placeholder(tf.int64, shape=[self.batch_size, self.sequence_len])
 
     def build_net(self):
         cell = tf.contrib.rnn.LSTMCell(self.hidden_units)
         output_lstm, _ = tf.nn.dynamic_rnn(
             cell,
             self.inputs_embeddings,
-            [self.sequence_len, self.sequence_len],
+            [self.sequence_len for _ in range(self.batch_size)],
             dtype=tf.float32
             )
         output_dropout = tf.nn.dropout(output_lstm, self.dropout)
@@ -42,22 +42,16 @@ class NERModel(object):
         losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.labels, logits=logits)
         loss = tf.reduce_mean(losses)
 
-        optimizer = tf.train.GradientDescentOptimizer(0.01)
+        if self.optimizer == 'Adam':
+            optimizer = tf.train.AdamOptimizer(self.decay_lr)
+        elif self.optimizer == 'Adadelta':
+            optimizer = tf.train.AdadeltaOptimizer(self.decay_lr)
         train_op = optimizer.minimize(loss)
 
         pred = tf.argmax(logits, axis=-1)
+        accuracy = tf.equal(pred, self.labels)
+        accuracy = tf.reduce_mean(tf.cast(accuracy, tf.float32))
 
-
-        # test_x = [[1, 2, 3], [4, 5, 6]]
-        # for i in test_x:
-        #     if len(i) < self.sequence_len:
-        #         i.extend([0 for _ in range(self.sequence_len - len(test_x) - 1)])
-        # print(test_x)
-        # test_y = [[0, 2, 3], [4, 6, 7]]
-        # for i in test_y:
-        #     if len(i) < self.sequence_len:
-        #         i.extend([0 for _ in range(self.sequence_len - len(test_y) - 1)])
-        # print(test_y)
         fr = open('train_data_x', 'r', encoding='utf-8')
         train_x = []
         for i in fr.readlines():
@@ -82,11 +76,8 @@ class NERModel(object):
                             j.extend([0 for _ in range(self.sequence_len - len(j))])
                     sess.run(train_op, feed_dict={self.inputs: x, self.labels: y})
                     if i % 100 == 0:
-                        print(sess.run(loss, feed_dict={self.inputs: x, self.labels: y}))
+                        print(sess.run((loss, accuracy), feed_dict={self.inputs: x, self.labels: y}))
                 break
-
-
-
 
 
 
@@ -105,4 +96,4 @@ class NERModel(object):
 
 
 if __name__ == '__main__':
-    ner = NERModel(2, 581, 4000)
+    ner = NERModel(32, 581, 4000)
