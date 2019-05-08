@@ -50,14 +50,14 @@ def build_vocab(path, vocab_size):
 
     print(seq_len)
 
-    with open('train_data_x', 'w', encoding='utf-8') as fw:
+    with open('test_data_x', 'w', encoding='utf-8') as fw:
         for i in dataset_x:
             fw.writelines(' '.join(i) + '\n')
 
-    with open('train_data_y', 'w', encoding='utf-8') as fw:
+    with open('test_data_y', 'w', encoding='utf-8') as fw:
         for i in dataset_y:
             fw.writelines(' '.join(i) + '\n')
 
 
 
-build_vocab('train_data', 4000)
+build_vocab('test_data', 4000)

@@ -1,5 +1,5 @@
 import os
-fr = open(os.path.join('original', 'train1.txt'), 'r', encoding='utf-8')
+fr = open(os.path.join('original', 'testright1.txt'), 'r', encoding='utf-8')
 clean_data = []
 count = 0
 for line in fr.readlines():
@@ -39,7 +39,7 @@ for line in fr.readlines():
     #     break
 fr.close()
 
-fw = open('train_data', 'w', encoding='utf-8')
+fw = open('test_data', 'w', encoding='utf-8')
 for i in clean_data:
     fw.writelines(i)
 

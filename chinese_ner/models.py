@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class NERModel(object):
-    def __init__(self, batch_size, sequence_len, vocab_size, embedding_dim=50):
+    def __init__(self, batch_size, sequence_len, vocab_size, embedding_dim=50, optim='Adam'):
         self.batch_size = batch_size
         self.sequence_len = sequence_len
         self.embedding_size = vocab_size
@@ -9,6 +9,9 @@ class NERModel(object):
         self.hidden_units = 128
         self.dropout = 0.8
         self.tags = 10
+        self.lr = 0.01
+        self.summary_path = 'summary'
+        self.optimizer = optim
         self.set_placeholder()
         self.build_net()
 
@@ -37,15 +40,14 @@ class NERModel(object):
                             shape=[self.tags],
                             initializer=tf.zeros_initializer(),
                             dtype=tf.float32)
-        # logits = [tf.matmul(item, w) + b for item in output_dropout]
         logits = tf.map_fn(lambda item: tf.matmul(item, w) + b, output_dropout)
         losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.labels, logits=logits)
         loss = tf.reduce_mean(losses)
 
         if self.optimizer == 'Adam':
-            optimizer = tf.train.AdamOptimizer(self.decay_lr)
+            optimizer = tf.train.AdamOptimizer(self.lr)
         elif self.optimizer == 'Adadelta':
-            optimizer = tf.train.AdadeltaOptimizer(self.decay_lr)
+            optimizer = tf.train.AdadeltaOptimizer(self.lr)
         train_op = optimizer.minimize(loss)
 
         pred = tf.argmax(logits, axis=-1)
@@ -62,8 +64,20 @@ class NERModel(object):
         for i in fr.readlines():
             train_y.append([int(j) for j in i.strip().split()])
 
+        fr = open('test_data_x', 'r', encoding='utf-8')
+        test_x = []
+        for i in fr.readlines():
+            test_x.append([int(j) for j in i.strip().split()])
+        fr.close()
+        fr = open('test_data_y', 'r', encoding='utf-8')
+        test_y = []
+        for i in fr.readlines():
+            test_y.append([int(j) for j in i.strip().split()])
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+            self.merged = tf.summary.merge_all()
+            self.file_writer = tf.summary.FileWriter(self.summary_path, sess.graph)
             for epoch in range(10):
                 for i in range(int(46364/self.batch_size)):
                     x = train_x[i: i + self.batch_size]
@@ -74,9 +88,20 @@ class NERModel(object):
                     for j in y:
                         if len(j) < self.sequence_len:
                             j.extend([0 for _ in range(self.sequence_len - len(j))])
+                    k = i % 10
+                    t_x = test_x[k: k + self.batch_size]
+                    t_y = train_y[k: k + self.batch_size]
+                    for j in t_x:
+                        if len(j) < self.sequence_len:
+                            j.extend([0 for _ in range(self.sequence_len - len(j))])
+                    for j in t_y:
+                        if len(j) < self.sequence_len:
+                            j.extend([0 for _ in range(self.sequence_len - len(j))])
                     sess.run(train_op, feed_dict={self.inputs: x, self.labels: y})
                     if i % 100 == 0:
                         print(sess.run((loss, accuracy), feed_dict={self.inputs: x, self.labels: y}))
+                        print(sess.run((loss, accuracy), feed_dict={self.inputs: t_x, self.labels: t_y}))
+
                 break
 
 
@@ -96,4 +121,4 @@ class NERModel(object):
 
 
 if __name__ == '__main__':
-    ner = NERModel(32, 581, 4000)
+    ner = NERModel(32, 649, 4000)
