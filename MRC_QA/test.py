@@ -15,19 +15,21 @@ for i in data:
         context = j['context']
         for k in j['qas']:
             question = k['question']
-            if k['answers'] == []:
-                break
-            answer_start = k['answers'][0]['answer_start']
-            answer_end = answer_start + len(k['answers'][0]['text'])
-            # print(len(context))
-            # print(answer_start, answer_end)
-            # print(context[answer_start: answer_end])
-            res = context + "\t" + question + "\t" + str(answer_start) + " " + str(answer_end)
-            clean_data.append(res)
+            if k['answers'] != []:
+                answer_start = k['answers'][0]['answer_start']
+                answer_end = answer_start + len(k['answers'][0]['text'])
+                # print(len(context))
+                # print(answer_start, answer_end)
+                # print(context[answer_start: answer_end])
+                res = context + "|||" + question + "|||" + str(answer_start) + " " + str(answer_end)
+                if len(res.split('|||')) != 3:
+                    print(res)
+                clean_data.append(res)
     #         break
     #     break
     # break
 
 with open('train_data', 'w', encoding='utf-8') as fw:
     for i in clean_data:
-        fw.writelines(i + "\n")
+        if len(i.strip().split("|||")) == 3:
+            fw.writelines(i + '\n')
