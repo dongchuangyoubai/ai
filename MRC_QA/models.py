@@ -74,13 +74,13 @@ class Decoder(object):
             output_attender_bw = _reverse(output_attender_bw, masks_para, 1, 0)
 
         output_attender = tf.concat([output_attender_fw, output_attender_bw], axis=-1)  # (-1, P, 2*H)
-        return output_attender
+        return output_attender_fw
 
     def run_answer_ptr(self, inputs, masks, labels):
         masks_question, masks_passage = masks
         print(inputs.get_shape())
-        print(labels.get_shape())
-        labels = tf.stack(labels, axis=1)
+        print(labels)
+        labels = tf.reshape(labels, [2, 2, 1])
         # print(labels[0].get_shape())
         # labels = tf.constant([[[269.0], [286.0]], [[207.0], [226.0]]])
         # return 1
@@ -189,7 +189,7 @@ class MatchLSTM(object):
             # at test time we do not perform dropout.
             sess.run(tf.global_variables_initializer())
             input_feed = self.getFeedDict(int_q, int_p, int_a, 1.0)
-            print(sess.run(self.labels, feed_dict=input_feed))
+            print(sess.run(self.logits, feed_dict=input_feed))
             # output_feed = [self.labels]
 
             # outputs = sess.run(output_feed, input_feed)
