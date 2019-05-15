@@ -29,7 +29,7 @@ for i in data:
     #     break
     # break
 
-with open('train_data', 'w', encoding='utf-8') as fw:
+with open('train_data', 'w', encoding='utf-8') as fw:e
     for i in clean_data:
         if len(i.strip().split("|||")) == 3:
             fw.writelines(i + '\n')

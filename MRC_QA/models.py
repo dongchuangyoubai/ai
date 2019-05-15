@@ -3,7 +3,17 @@ import pickle
 from data_utils import *
 from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import *
 import numpy as np
+from tensorflow.python.ops import array_ops
 
+
+# -- A helper function to reverse a tensor along seq_dim
+def _reverse(input_, seq_lengths, seq_dim, batch_dim):
+  if seq_lengths is not None:
+    return array_ops.reverse_sequence(
+        input=input_, seq_lengths=seq_lengths,
+        seq_dim=seq_dim, batch_dim=batch_dim)
+  else:
+    return array_ops.reverse(input_, axis=[seq_dim])
 
 class Encoder(object):
     def __init__(self, hidden_size):
@@ -43,26 +53,37 @@ class Decoder(object):
 
     def run_match_lstm(self, encoded, masks):
         encoded_ques, encoded_para = encoded
-        masks_question, masks_passage = masks
+        masks_ques, masks_para = masks
+        print(masks_ques)
         with tf.variable_scope("match_lstm_attender"):
             attention = BahdanauAttention(
                 self.hidden_size,
                 encoded_ques,
-                memory_sequence_length=masks_question
+                memory_sequence_length=masks_ques
             )
             cell = tf.contrib.rnn.LSTMCell(self.hidden_size, state_is_tuple=True)
             decoder_cell = AttentionWrapper(
                 cell,
-                attention
+                attention,
+                output_attention=False
             )
+            reverse_encoded_para = _reverse(encoded_para, masks_para, 1, 0)
+
             output_attender_fw, _ = tf.nn.dynamic_rnn(decoder_cell, encoded_para, dtype=tf.float32, scope="rnn")
-        return output_attender_fw
+            output_attender_bw, _ = tf.nn.dynamic_rnn(decoder_cell, reverse_encoded_para, dtype=tf.float32, scope="rnn")
+            output_attender_bw = _reverse(output_attender_bw, masks_para, 1, 0)
+
+        output_attender = tf.concat([output_attender_fw, output_attender_bw], axis=-1)  # (-1, P, 2*H)
+        return output_attender
 
     def run_answer_ptr(self, inputs, masks, labels):
         masks_question, masks_passage = masks
         print(inputs.get_shape())
         print(labels.get_shape())
-        # labels = tf.unstack(labels, axis=1)
+        labels = tf.stack(labels, axis=1)
+        # print(labels[0].get_shape())
+        # labels = tf.constant([[[269.0], [286.0]], [[207.0], [226.0]]])
+        # return 1
         with tf.variable_scope("answer_ptr_attender"):
             attention = BahdanauAttention(
                 self.hidden_size,
@@ -74,7 +95,6 @@ class Decoder(object):
                 cell,
                 attention
             )
-
             logits, _ = tf.nn.dynamic_rnn(decoder_cell, labels, dtype=tf.float32, scope="rnn")
         return logits
 
@@ -87,7 +107,7 @@ class MatchLSTM(object):
     def __init__(self, encoder, decoder, dims, data, embeddings=0, q_seq_len=40, p_seq_len=653):
         self.q_seq_len = q_seq_len
         self.p_seq_len = p_seq_len
-        self.batch_size = 2
+        self.batch_size = 3
         self.dims = dims
         self.embeddings = embeddings
         self.hidden_size = 128
@@ -112,7 +132,7 @@ class MatchLSTM(object):
         self.ques_inputs = tf.placeholder(dtype=tf.int32, shape=[None, None])
         self.ques_lengths = tf.placeholder(tf.int32, shape=[None], name="question_lengths")
         self.para_lengths = tf.placeholder(tf.int32, shape=[None], name="paragraph_lengths")
-        self.labels = tf.placeholder(tf.int32, shape=[None, 2], name="gold_labels")
+        self.labels = tf.placeholder(tf.float32, shape=[None, 2], name="gold_labels")
         self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
 
@@ -143,7 +163,8 @@ class MatchLSTM(object):
             self.labels: answers,
             self.dropout: dropout_val
         }
-        print(self.labels.get_shape())
+        print(question_lengths)
+        print(passage_lengths)
         return feed
 
     def test(self):
@@ -156,7 +177,6 @@ class MatchLSTM(object):
             int_p = []
             int_q = []
             int_a = []
-            print(a)
             p = [i.strip().split() for i in p]
             for i in p:
                 int_p.append([int(j) for j in i])
@@ -167,10 +187,9 @@ class MatchLSTM(object):
             for i in a:
                 int_a.append([int(j) for j in i])
             # at test time we do not perform dropout.
-            print(int_a)
             sess.run(tf.global_variables_initializer())
             input_feed = self.getFeedDict(int_q, int_p, int_a, 1.0)
-            print(sess.run(self.output_attender_fw, feed_dict=input_feed))
+            print(sess.run(self.labels, feed_dict=input_feed))
             # output_feed = [self.labels]
 
             # outputs = sess.run(output_feed, input_feed)
