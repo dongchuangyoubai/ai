@@ -48,6 +48,7 @@ class Decoder(object):
     def decode(self, encoded, masks, labels):
         output_attender_fw = self.run_match_lstm(encoded, masks)
         logits = self.run_answer_ptr(output_attender_fw, masks, labels)
+        # logits = tf.argmax(logits, axis=2)
         return logits
 
 
@@ -55,6 +56,7 @@ class Decoder(object):
         encoded_ques, encoded_para = encoded
         masks_ques, masks_para = masks
         print(masks_ques)
+        print(encoded_ques)
         with tf.variable_scope("match_lstm_attender"):
             attention = BahdanauAttention(
                 self.hidden_size,
@@ -74,28 +76,31 @@ class Decoder(object):
             output_attender_bw = _reverse(output_attender_bw, masks_para, 1, 0)
 
         output_attender = tf.concat([output_attender_fw, output_attender_bw], axis=-1)  # (-1, P, 2*H)
+        print(output_attender_fw)
         return output_attender_fw
 
     def run_answer_ptr(self, inputs, masks, labels):
-        masks_question, masks_passage = masks
-        print(inputs.get_shape())
-        print(labels)
+        masks_ques, masks_para = masks
+        # print(inputs.get_shape())
+        # print(labels)
         labels = tf.reshape(labels, [2, 2, 1])
+        # size = inputs.get_shape()[-1]
+        # print(size)
         # print(labels[0].get_shape())
-        # labels = tf.constant([[[269.0], [286.0]], [[207.0], [226.0]]])
+        label = tf.constant([[[269.0], [286.0]], [[207.0], [226.0]]])
         # return 1
         with tf.variable_scope("answer_ptr_attender"):
             attention = BahdanauAttention(
                 self.hidden_size,
                 inputs,
-                memory_sequence_length=masks_question
+                memory_sequence_length=masks_para
             )
             cell = tf.contrib.rnn.LSTMCell(self.hidden_size, state_is_tuple=True)
             decoder_cell = AttentionWrapper(
                 cell,
                 attention
             )
-            logits, _ = tf.nn.dynamic_rnn(decoder_cell, labels, dtype=tf.float32, scope="rnn")
+            logits, _ = tf.nn.dynamic_rnn(decoder_cell, inputs=label, dtype=tf.float32, scope="rnn")
         return logits
 
 
@@ -123,7 +128,7 @@ class MatchLSTM(object):
             [self.ques_inputs_embs, self.para_inputs_emds], [self.ques_lengths, self.para_lengths])
         self.logits = self.decoder.decode([encoded_ques, encoded_para],
                                                       [self.ques_lengths, self.para_lengths], self.labels)
-        # self.run_match_lstm([self.encoded_ques, self.encoded_para])
+        # self.setup_loss()
 
         self.test()
 
@@ -132,7 +137,7 @@ class MatchLSTM(object):
         self.ques_inputs = tf.placeholder(dtype=tf.int32, shape=[None, None])
         self.ques_lengths = tf.placeholder(tf.int32, shape=[None], name="question_lengths")
         self.para_lengths = tf.placeholder(tf.int32, shape=[None], name="paragraph_lengths")
-        self.labels = tf.placeholder(tf.float32, shape=[None, 2], name="gold_labels")
+        self.labels = tf.placeholder(tf.int32, shape=[None, 2], name="labels")
         self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
 
@@ -142,7 +147,15 @@ class MatchLSTM(object):
         self.para_inputs_emds = tf.nn.embedding_lookup(self.embeddings, self.para_inputs)
         self.ques_inputs_embs = tf.nn.embedding_lookup(self.embeddings, self.ques_inputs)
 
+    def setup_loss(self):
+        """
+        self.logits are the 2 sets of logit (num_classes) values for each example, masked with float(-inf) beyond the true sequence length
+        :return: Loss for the current batch of examples
+        """
 
+        losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits[0], labels=self.labels[:, 0])
+        losses += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits[1], labels=self.labels[:, 1])
+        self.loss = tf.reduce_mean(losses)
 
     def getFeedDict(self, questions, paragraphs, answers, dropout_val):
         """
@@ -195,8 +208,6 @@ class MatchLSTM(object):
             # outputs = sess.run(output_feed, input_feed)
 
         # return outputs[0][0], outputs[0][1]
-
-
 
 
 

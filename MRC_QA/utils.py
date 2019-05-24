@@ -8,7 +8,7 @@ def getVocab(dim):
     vocab_embs = []
     for i in fr.readlines():
         word, emb = i.strip().split(maxsplit=1)
-        # print(word)
+        print(word)
         if len(emb.split()) == dim:
             vocab_list.append(word)
             vocab_embs.append(emb)
@@ -45,13 +45,11 @@ def buildTrainData(filename, word2id):
 
 
 if __name__ == '__main__':
-    # vocab_list, vocab_embs = getVocab(50)
-    #
-    # print(vocab_list[0])
-    # print(vocab_embs[0])
+    vocab_list, vocab_embs = getVocab(50)
+
     # print(vocab_list.index('unk'))
-    # word2id = word2Id(vocab_list)
-    # pickle.dump([vocab_list, vocab_embs, word2id], open('data.pickle', 'wb'))
+    word2id = word2Id(vocab_list)
+    pickle.dump([vocab_list, vocab_embs, word2id], open('data.pickle', 'wb'))
     [vocab_list, vocab_embs, word2id] = pickle.load(open('data.pickle', 'rb'))
-    print(vocab_list.index('unk'))
+    # print(vocab_list.index('unk'))
     buildTrainData('train_data', word2id)
