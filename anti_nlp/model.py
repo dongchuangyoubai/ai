@@ -12,3 +12,6 @@ for line in fr.readlines():
 
 print(data_x[10], y[10])
 
+train_x, test_x, train_y, test_y = train_test_split(data_x, y, test_size=0.2)
+print(len(train_x), len(train_x))
+
