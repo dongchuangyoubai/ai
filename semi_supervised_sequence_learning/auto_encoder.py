@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.compat.v1.nn.rnn_cell import BasicLSTMCell
+from tensorflow.keras.layers import LSTMCell
 
 
 class AutoEncoder(object):
@@ -13,40 +13,38 @@ class AutoEncoder(object):
         self.x = tf.placeholder(tf.int32, [None, max_doc_len])
         self.batch_size = tf.shape(self.x)[0]
 
-        self.decoder_input = tf.concat([tf.ones([self.batch_size, 1]) * self.word_dict['<s>'], self.x], axis=1)
-        self.targets = tf.concat([self.x, tf.ones([self.batch_size, 1]) * self.word_dict['</s>']], axis=1)
+        self.decoder_input = tf.concat([tf.ones([self.batch_size, 1], tf.int32) * self.word_dict['<s>'], self.x], axis=1)
+        self.targets = tf.concat([self.x, tf.ones([self.batch_size, 1], tf.int32) * self.word_dict['</s>']], axis=1)
         self.encoder_input_len = tf.reduce_sum(self.x, 1)
         self.decoder_input_len = tf.reduce_sum(self.decoder_input, 1)
 
         with tf.variable_scope("embedding"):
-            init_embeddings = tf.random_uniform_initializer([self.voc_size, self.embedding_size])
+            init_embeddings = tf.random_uniform([self.voc_size, self.embedding_size])
             embeddings = tf.get_variable("embeddings", initializer=init_embeddings)
             encoder_input_emd = tf.nn.embedding_lookup(embeddings, self.x)
             decoder_input_emd = tf.nn.embedding_lookup(embeddings, self.decoder_input)
 
         with tf.variable_scope("encoder"):
-            encoder_cell = BasicLSTMCell(self.hidden_size)
+            encoder_cell = LSTMCell(self.hidden_size)
             _, encoder_hidden_states = tf.nn.dynamic_rnn(
-                encoder_cell, encoder_input_emd, sequence_length=self.encoder_input_len, dtype=tf.folat32
+                encoder_cell, encoder_input_emd, sequence_length=self.encoder_input_len, dtype=tf.float32
             )
 
         with tf.variable_scope("decoder"):
-            decoder_cell = BasicLSTMCell(self.hidden_size)
+            decoder_cell = LSTMCell(self.hidden_size)
             decoder_output, _ = tf.nn.dynamic_rnn(
                 decoder_cell, decoder_input_emd, sequence_length=self.decoder_input_len,
                 initial_state=encoder_hidden_states, dtype=tf.float32
             )
 
         with tf.name_scope("output"):
-            self.logits = tf.layer.dense(decoder_output, self.voc_size)
+            self.logits = tf.layers.dense(decoder_output, self.voc_size)
 
         with tf.name_scope("loss"):
-            losses = tf.seq2seq.loss.sequence_loss(
+            losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
                 logits=self.logits,
                 targets=self.targets,
-                weights=tf.sequence_mask(self.decoder_input_len, self.max_doc_len + 1, dtype=tf.float32),
-                average_across_timesteps=False,
-                average_across_batch=True
+                weights=tf.sequence_mask(self.decoder_input_len, self.max_doc_len + 1, dtype=tf.float32)
             )
             self.loss = tf.reduce_mean(losses)
 
