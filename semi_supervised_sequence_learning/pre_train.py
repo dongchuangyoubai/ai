@@ -18,7 +18,7 @@ def train(train_x, train_y, word_dict, args):
         gradients = tf.gradients(model.loss, params)
         clipped_gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
         optimizer = tf.train.AdamOptimizer(0.001)
-        train_op = optimizer.apply_gradients(zip(clipped_gradients, params), global_steps=global_steps)
+        train_op = optimizer.apply_gradients(zip(clipped_gradients, params))
 
         loss_summary = tf.summary.scalar("loss", model.loss)
         summary_op = tf.summary.merge_all()
@@ -51,6 +51,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="auto_encoder", help="auto_encoder | language_model")
     args = parser.parse_args()
+    # import nltk
+    # nltk.download('punkt')
 
     if not os.path.exists("dbpedia_csv"):
         print("Downloading dbpedia dataset...")
@@ -59,5 +61,5 @@ if __name__ == "__main__":
     print("\nBuilding dictionary..")
     word_dict = build_word_dict()
 
-    train_x, train_y = build_word_dataset("test", word_dict, MAX_DOCUMENT_LEN)
+    train_x, train_y = build_word_dataset("debug", word_dict, MAX_DOCUMENT_LEN)
     train(train_x, train_y, word_dict, args)

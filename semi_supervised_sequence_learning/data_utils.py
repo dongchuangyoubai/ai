@@ -10,6 +10,7 @@ import numpy as np
 
 TRAIN_PATH = "dbpedia_csv/train.csv"
 TEST_PATH = "dbpedia_csv/test.csv"
+debug_path = "dbpedia_csv/debug.csv"
 
 
 def download_dbpedia():
@@ -30,7 +31,8 @@ def clean_str(text):
 
 def build_word_dict():
     if not os.path.exists("word_dict.pickle"):
-        train_df = pd.read_csv(TRAIN_PATH, names=["class", "title", "content"])
+        #train_df = pd.read_csv(TRAIN_PATH, names=["class", "title", "content"])
+        train_df = pd.read_csv(debug_path, names=["class", "title", "content"], encoding='gbk')
         contents = train_df["content"]
 
         words = list()

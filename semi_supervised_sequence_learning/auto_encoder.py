@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.layers import LSTMCell
+from tensorflow.contrib import rnn
 
 
 class AutoEncoder(object):
@@ -15,8 +16,9 @@ class AutoEncoder(object):
 
         self.decoder_input = tf.concat([tf.ones([self.batch_size, 1], tf.int32) * self.word_dict['<s>'], self.x], axis=1)
         self.targets = tf.concat([self.x, tf.ones([self.batch_size, 1], tf.int32) * self.word_dict['</s>']], axis=1)
-        self.encoder_input_len = tf.reduce_sum(self.x, 1)
-        self.decoder_input_len = tf.reduce_sum(self.decoder_input, 1)
+
+        self.encoder_input_len = tf.reduce_sum(tf.sign(self.x), 1)
+        self.decoder_input_len = tf.reduce_sum(tf.sign(self.decoder_input), 1)
 
         with tf.variable_scope("embedding"):
             init_embeddings = tf.random_uniform([self.voc_size, self.embedding_size])
@@ -25,13 +27,13 @@ class AutoEncoder(object):
             decoder_input_emd = tf.nn.embedding_lookup(embeddings, self.decoder_input)
 
         with tf.variable_scope("encoder"):
-            encoder_cell = LSTMCell(self.hidden_size)
+            encoder_cell = rnn.BasicLSTMCell(self.hidden_size)
             _, encoder_hidden_states = tf.nn.dynamic_rnn(
                 encoder_cell, encoder_input_emd, sequence_length=self.encoder_input_len, dtype=tf.float32
             )
 
         with tf.variable_scope("decoder"):
-            decoder_cell = LSTMCell(self.hidden_size)
+            decoder_cell = rnn.BasicLSTMCell(self.hidden_size)
             decoder_output, _ = tf.nn.dynamic_rnn(
                 decoder_cell, decoder_input_emd, sequence_length=self.decoder_input_len,
                 initial_state=encoder_hidden_states, dtype=tf.float32
@@ -40,11 +42,16 @@ class AutoEncoder(object):
         with tf.name_scope("output"):
             self.logits = tf.layers.dense(decoder_output, self.voc_size)
 
+
         with tf.name_scope("loss"):
-            losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+            print(self.logits.shape)
+            print(self.targets.shape)
+            losses = tf.contrib.seq2seq.sequence_loss(
                 logits=self.logits,
                 targets=self.targets,
-                weights=tf.sequence_mask(self.decoder_input_len, self.max_doc_len + 1, dtype=tf.float32)
+                weights=tf.sequence_mask(self.decoder_input_len, self.max_doc_len + 1, dtype=tf.float32),
+                average_across_timesteps=False,
+                average_across_batch=True
             )
             self.loss = tf.reduce_mean(losses)
 
