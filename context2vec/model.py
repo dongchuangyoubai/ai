@@ -52,3 +52,9 @@ class Model(nn.Module):
     def forward(self, sentences, target, target_pos=None):
         batch_size, seq_len = sentences.size()
         reversed_sentences = sentences.flip(1)[:, :-1]
+        sentences = sentences[:, :-1]
+
+        l2r_emb = self.l2r_emb(sentences)
+        output_l2r, _ = self.l2r_rnn(l2r_emb)
+        r2l_emb = self.r2l_emb(reversed_sentences)
+        output_r2l, _ = self.r2l_rnn(r2l_emb)
