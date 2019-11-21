@@ -2,6 +2,7 @@ import os
 import argparse
 import tensorflow as tf
 from auto_encoder import AutoEncoder
+from language_model import LanguageModel
 from data_utils import build_word_dict, build_word_dataset, batch_iter, download_dbpedia
 
 BATCH_SIZE = 64
@@ -11,8 +12,8 @@ MAX_DOCUMENT_LEN = 100
 
 def train(train_x, train_y, word_dict, args):
     with tf.compat.v1.Session() as sess:
-        model = AutoEncoder(word_dict, MAX_DOCUMENT_LEN)
-
+        # model = AutoEncoder(word_dict, MAX_DOCUMENT_LEN)
+        model = LanguageModel(word_dict, MAX_DOCUMENT_LEN)
         global_steps = tf.Variable(0, trainable=False)
         params = tf.trainable_variables()
         gradients = tf.gradients(model.loss, params)
