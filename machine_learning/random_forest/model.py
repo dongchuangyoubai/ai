@@ -76,4 +76,5 @@ if __name__ == '__main__':
         best_point, tmp_gain = cal_gain(random_choice(df, 200), 39, i)
         if tmp_gain > max_gain:
             idx = i
-    print(idx)
+    print(idx, best_point)
+
