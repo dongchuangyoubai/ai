@@ -3,8 +3,8 @@ import numpy as np
 import math
 
 df = pd.read_csv('train.csv')
-feature_names = df.columns.values
-print(feature_names)
+feature_names = list(df.columns.values)
+# print(type(feature_names))
 train_size = len(df['age'])
 # print(train_size)
 
@@ -47,7 +47,7 @@ def cal_entropy(dataset):
 
 # 选择最佳分裂点
 def choice_best_point(dataset, feature):
-    tmp = sorted(list(set(dataset[:, -1])))
+    tmp = sorted(list(set(dataset[:, feature])))
     cand_points = [(tmp[i] + tmp[i + 1]) / 2 for i in range(len(tmp) - 1)]
     # print(cand_points)
     best_point = 0
@@ -61,6 +61,7 @@ def choice_best_point(dataset, feature):
         if tmp_gain > max_gain:
             max_gain = tmp_gain
             best_point = i
+    # print(best_point)
     return best_point, max_gain
 
 
@@ -87,17 +88,21 @@ def choose_best_to_split(dataset):
     feature_nums = len(dataset[0]) - 1
     best_feature_idx = 0
     max_gain = 0
+    best_point = 0
     for i in range(feature_nums):
         tmp_point, tmp_gain = choice_best_point(dataset, i)
         if tmp_gain > max_gain:
             best_feature_idx = i
-    return best_feature_idx
+            best_point = tmp_point
+    return best_feature_idx, best_point
 
 
 # 构建决策树
 def creat_tree(dataset):
+    if len(dataset) == 0:
+        return 0
     labels = dataset[:, -1]
-    print(list(labels).count(0))
+    # print(list(labels).count(0))
     # 当前类别完全相同，无需划分
     if list(labels).count(0) == len(labels):
         return 0
@@ -106,8 +111,20 @@ def creat_tree(dataset):
     # 特征遍历完毕仍然分不出纯净分组，返回当前类别下最多的类别
     if len(dataset[0]) == 1:
         return major_class(labels)
-    best_feature_idx = choose_best_to_split(dataset)
-    print(feature_names[best_feature_idx])
+    best_feature_idx, best_point = choose_best_to_split(dataset)
+    best_feature = feature_names[best_feature_idx]
+    tree = {best_feature: {}}
+    del feature_names[best_feature_idx]
+    left, right = data_split(dataset, best_feature_idx, best_point)
+    if len(left) == 0:
+        return 0
+    if len(right) == 0:
+        return 1
+    left = np.delete(left, best_feature_idx, axis=1)
+    right = np.delete(right, best_feature_idx, axis=1)
+    tree[best_feature][str(best_point) + '_left'] = creat_tree(left)
+    tree[best_feature][str(best_point) + '_right'] = creat_tree(right)
+    return tree
 
 
 
@@ -121,5 +138,6 @@ if __name__ == '__main__':
     #     if tmp_gain > max_gain:
     #         idx = i
     # print(idx, best_point)
-    creat_tree(random_choice(df, 200))
+    tree = creat_tree(random_choice(df, 200))
+    print(tree)
 
